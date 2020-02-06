@@ -23,6 +23,10 @@ class Snake:
                      (2 = up -> x does not change)
     :property y_map: maps a move/direction to the changes made to the y coordinate
                      (2 = up -> y decreases by 1)
+    :property symbol_map: maps numbers in numpy array field to strings for displaying
+    :property verbose: determines whether output's printed on console
+    :property max_steps_without_eating: determines how many steps can be made without eating food before the game ends
+    :property current_steps: the number of current steps without eating food
     """
 
     def __init__(self, player, dim=(20, 10), move_at_ticks=30, verbose=True):
@@ -31,46 +35,37 @@ class Snake:
         self.ticks = 0
         self.move_at_ticks = move_at_ticks
         self.player = player
-        self.dimx, self.dimy = dim
+        self.dim_x, self.dim_y = dim
         self.direction = 2
-        self.snake = [(self.dimy // 2, self.dimx // 2)]
+        self.snake = [(self.dim_y - 2, self.dim_x // 2)]
         self.snake_max = 1
         self.food = (5, 5)
         self.x_map = {1: -1, 2: 0, 3: 1, 4: 0}
         self.y_map = {1: 0, 2: -1, 3: 0, 4: 1}
         self.symbol_map = {0: " ", 5: "5", 9: "9"}
         self.verbose = verbose
+        self.max_steps_without_eating = int(self.dim_x * self.dim_y)
+        self.current_steps = 0
 
     def start(self):
-        """ The function which runs the game. Contains all the game logic.
+        """ Main loop of the game.
         """
-
-        # necessary to make the start of the game less awkward
         self._wait_for_player()
 
-        # game loop
         while True:
-            # advance game state by 1 ticks
             self.ticks += 1
 
-            # get next move
             next_move = self.player.get_next_move(self)
-
-            # only move every 10 ticks
             if self.ticks == self.move_at_ticks:
-                # process next move
                 if not self._process_move(next_move):
                     break
 
-                # display updated state and reset ticks
                 self._display_state()
                 self.ticks = 0
 
-            # sleep
             if self.verbose:
                 time.sleep(0.005)
 
-        # game is finished
         self._end_game()
 
     def _wait_for_player(self):
@@ -93,40 +88,48 @@ class Snake:
 
         :return game_not_finished: determines whether the game is finished or not
         """
+        self.current_steps += 1
 
-        # check if move is valid
         if move == 1 or move == 2 or move == 3 or move == 4:
             self.direction = move
 
-        # determine new position of snake head
         y, x = self.snake[-1]
         x += self.x_map[self.direction]
         y += self.y_map[self.direction]
 
-        # check for colision with border
-        if x < 1 or x == self.dimx - 1 or y < 1 or y == self.dimy - 1:
+        if not self._check_collisions((y, x)):
             return False
 
-        # check for collision with food
-        if (y, x) == self.food:
-            self.snake_max += 1
-            # determine possible positions for new food
-            possible_food = []
-            for i in [(y_, x_) for x_ in range(1, self.dimx - 1) for y_ in range(1, self.dimy - 1)]:
-                if i not in self.snake:
-                    possible_food.append(i)
+        self.snake.append((y, x))
+        if self.snake_max < len(self.snake):
+            del self.snake[0]
 
-            self.food = possible_food[random.randrange(len(possible_food))]
+        if self.current_steps > self.max_steps_without_eating:
+            return False
 
-        # check for collision with snake body
+        return True
+
+    def _check_collisions(self, next_position):
+        """ Checks collisions and spawns new food if necessary.
+        """
+        y, x = next_position
+
+        if x < 1 or x == self.dim_x - 1 or y < 1 or y == self.dim_y - 1:
+            return False
+
         for i in self.snake:
             if i == (y, x):
                 return False
 
-        # set new position of head
-        self.snake.append((y, x))
-        if self.snake_max < len(self.snake):
-            del self.snake[0]
+        if (y, x) == self.food:
+            self.snake_max += 1
+            self.current_steps = 0
+            possible_food = []
+            for i in [(y_, x_) for x_ in range(1, self.dim_x - 1) for y_ in range(1, self.dim_y - 1)]:
+                if i not in self.snake:
+                    possible_food.append(i)
+
+            self.food = possible_food[random.randrange(len(possible_food))]
 
         return True
 
@@ -136,38 +139,33 @@ class Snake:
         if not self.verbose:
             return
 
-        # clear output and prepare an empty board
         clear_output(wait=True)
-        field_to_draw = np.zeros((self.dimy, self.dimx), dtype=np.int8)
+        field_to_draw = np.zeros((self.dim_y, self.dim_x), dtype=np.int8)
 
-        # set snake in field
         for i in self.snake:
             field_to_draw[i] = 9
 
-        # set food in field
         field_to_draw[self.food] = 5
 
-        # draw field (including snake, food)
-        game = ""
+        game = "Points: {} ({}/{} steps)\n".format(self.snake_max-1, self.current_steps, self.max_steps_without_eating)
         for i in range(field_to_draw.shape[0]):
             for j in range(field_to_draw.shape[1]):
 
-                # border
-                if j == 0 or j == self.dimx - 1:
-                    game = game + "|"
+                if j == 0 or j == self.dim_x - 1:
+                    game += "|"
                     continue
-                elif i == 0 or i == self.dimy - 1:
-                    game = game + "-"
+                elif i == 0 or i == self.dim_y - 1:
+                    game += "-"
                     continue
 
-                # snake, food and empty cells
-                game = game + self.symbol_map[field_to_draw[i, j]]
+                game += self.symbol_map[field_to_draw[i, j]]
 
-            game = game + "\n"
+            game += "\n"
 
-        # only a single print to display the whole field
         print(game)
 
     def _end_game(self):
+        """ Finishes the game.
+        """
         if self.verbose:
             print("You got " + str(self.snake_max - 1) + " points!")
