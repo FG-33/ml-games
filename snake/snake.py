@@ -29,7 +29,7 @@ class Snake:
     :property current_steps: the number of current steps without eating food
     """
 
-    def __init__(self, player, dim=(20, 10), move_at_ticks=30, verbose=True):
+    def __init__(self, player, dim=(20, 10), move_at_ticks=30, verbose=True, human=True):
         """ Initializes the game state.
         """
         self.ticks = 0
@@ -46,6 +46,7 @@ class Snake:
         self.verbose = verbose
         self.max_steps_without_eating = int(self.dim_x * self.dim_y)
         self.current_steps = 0
+        self.human = human
 
     def start(self):
         """ Main loop of the game.
@@ -71,7 +72,7 @@ class Snake:
     def _wait_for_player(self):
         """ Countdown before the game starts.
         """
-        if not self.verbose:
+        if not self.verbose or not self.human:
             return
 
         self._display_state()
