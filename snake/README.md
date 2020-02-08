@@ -2,8 +2,10 @@
 
 ### Dependencies
 
-The necessary dependencies to run this notebook can be installed via pip using the following command:
+``jupyter``
 
-``
-$ pip3 install jupyter numpy keyboard
-``
+``numpy``
+
+``keyboard``
+
+``pytorch`` [(help)](https://pytorch.org/)
